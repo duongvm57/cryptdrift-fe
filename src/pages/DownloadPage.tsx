@@ -9,7 +9,7 @@ interface DownloadPageProps {
 }
 
 const DownloadPage: React.FC<DownloadPageProps> = ({ token }) => {
-  const [showDecryptionAnimation, setShowDecryptionAnimation] = useState(false);
+  const [showDecryptionAnimation] = useState(false);
   const [parsedToken, setParsedToken] = useState<string | undefined>(token);
 
   useEffect(() => {
@@ -26,14 +26,6 @@ const DownloadPage: React.FC<DownloadPageProps> = ({ token }) => {
       }
     }
   }, [token]);
-
-  // This would be triggered by the DownloadForm component in a real implementation
-  const handleDownloadStart = () => {
-    setShowDecryptionAnimation(true);
-    setTimeout(() => {
-      setShowDecryptionAnimation(false);
-    }, 2000);
-  };
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-900 text-white">

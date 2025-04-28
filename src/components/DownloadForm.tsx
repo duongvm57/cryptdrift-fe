@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DownloadIcon, AlertCircleIcon } from 'lucide-react';
-import { useFileContext } from '../context/FileContext';
+import { useFileContext } from '../hooks/useFileContext';
 
 interface DownloadFormProps {
   token?: string;

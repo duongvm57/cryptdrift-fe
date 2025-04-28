@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { uploadFile, getFileInfo, downloadFile } from '../services/api';
+import { createContext, useState, ReactNode } from 'react';
+import { uploadFile, getFileInfo, downloadFile, FileInfo } from '../services/api';
 import { generateEncryptionKey, encryptFile, exportKeyToHex, importKeyFromHex, decryptFile } from '../utils/encryption';
 
 // Define data type for context
@@ -25,23 +25,14 @@ interface FileContextType {
   ) => Promise<void>;
 
   // Function to get file information
-  getFileInformation: (token: string) => Promise<any>;
+  getFileInformation: (token: string) => Promise<FileInfo>;
 
   // Function to reset error
   resetError: () => void;
 }
 
 // Create context with default value null
-const FileContext = createContext<FileContextType | null>(null);
-
-// Hook to use context
-export function useFileContext() {
-  const context = useContext(FileContext);
-  if (!context) {
-    throw new Error('useFileContext must be used within a FileProvider');
-  }
-  return context;
-}
+export const FileContext = createContext<FileContextType | null>(null);
 
 // Props for Provider
 interface FileProviderProps {

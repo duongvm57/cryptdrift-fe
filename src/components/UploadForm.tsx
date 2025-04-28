@@ -1,6 +1,6 @@
 import React, { useState, useRef, ChangeEvent } from 'react';
 import { UploadCloudIcon, ClockIcon, DownloadIcon, AlertCircleIcon } from 'lucide-react';
-import { useFileContext } from '../context/FileContext';
+import { useFileContext } from '../hooks/useFileContext';
 
 interface UploadFormProps {
   onUploadSuccess: (url: string, key: string) => void;

@@ -3,6 +3,14 @@
  * Contains functions for API calls to the backend
  */
 
+// API base URL
+export const API_BASE_URL = '/api';
+
+// Helper function to create full API URL
+export function getApiUrl(path: string): string {
+  return `${API_BASE_URL}${path}`;
+}
+
 /**
  * Interface for file upload request
  */
@@ -28,12 +36,13 @@ interface UploadFileResponse {
 /**
  * Interface for file information
  */
-interface FileInfo {
+export interface FileInfo {
   id: string;
   expiration_time: string;
   download_limit: number;
   download_count: number;
   created_at: string;
+  filename?: string; // Thêm trường filename vì nó được sử dụng trong FileContext.tsx
 }
 
 /**
@@ -65,7 +74,7 @@ export async function uploadFile(params: UploadFileRequest): Promise<UploadFileR
   }
 
   // Call upload API
-  const response = await fetch('/api/upload', {
+  const response = await fetch(getApiUrl('/upload'), {
     method: 'POST',
     body: formData,
   });
@@ -84,7 +93,7 @@ export async function uploadFile(params: UploadFileRequest): Promise<UploadFileR
  * @returns Promise with file information
  */
 export async function getFileInfo(token: string): Promise<FileInfo> {
-  const response = await fetch(`/api/download/${token}/info`);
+  const response = await fetch(getApiUrl(`/download/${token}/info`));
 
   if (!response.ok) {
     const errorData = await response.json();
@@ -100,7 +109,7 @@ export async function getFileInfo(token: string): Promise<FileInfo> {
  * @returns Promise with Blob containing file content
  */
 export async function downloadFile(token: string): Promise<Blob> {
-  const response = await fetch(`/api/download/${token}`);
+  const response = await fetch(getApiUrl(`/download/${token}`));
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
