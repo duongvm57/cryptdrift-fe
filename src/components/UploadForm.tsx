@@ -1,6 +1,6 @@
 import React, { useState, useRef, ChangeEvent } from 'react';
 import { UploadCloudIcon, ClockIcon, DownloadIcon, AlertCircleIcon } from 'lucide-react';
-import { generateEncryptionKey, encryptFile, exportKeyToHex } from '../utils/encryption';
+import { useFileContext } from '../context/FileContext';
 
 interface UploadFormProps {
   onUploadSuccess: (url: string, key: string) => void;
@@ -8,12 +8,18 @@ interface UploadFormProps {
 
 const UploadForm: React.FC<UploadFormProps> = ({ onUploadSuccess }) => {
   const [file, setFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [expirationTime, setExpirationTime] = useState('24');
   const [downloadLimit, setDownloadLimit] = useState('1');
-  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Use context instead of local state
+  const {
+    isUploading,
+    uploadProgress,
+    error,
+    uploadEncryptedFile,
+    resetError
+  } = useFileContext();
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -21,12 +27,12 @@ const UploadForm: React.FC<UploadFormProps> = ({ onUploadSuccess }) => {
 
       // Check file size limit (1GB)
       if (selectedFile.size > 1024 * 1024 * 1024) {
-        setError('File size exceeds the 1GB limit.');
+        resetError();
         return;
       }
 
       setFile(selectedFile);
-      setError(null);
+      resetError();
     }
   };
 
@@ -42,71 +48,40 @@ const UploadForm: React.FC<UploadFormProps> = ({ onUploadSuccess }) => {
 
       // Check file size limit (1GB)
       if (droppedFile.size > 1024 * 1024 * 1024) {
-        setError('File size exceeds the 1GB limit.');
+        resetError();
         return;
       }
 
       setFile(droppedFile);
-      setError(null);
+      resetError();
     }
   };
 
   const handleUpload = async () => {
     if (!file) {
-      setError('Please select a file to upload.');
+      resetError();
       return;
     }
 
     try {
-      setIsUploading(true);
-      setUploadProgress(0);
+      // Use uploadEncryptedFile function from context
+      const { url, key } = await uploadEncryptedFile(
+        file,
+        parseInt(expirationTime),
+        parseInt(downloadLimit)
+      );
 
-      // Generate encryption key
-      const encryptionKey = await generateEncryptionKey();
-
-      // Encrypt the file client-side
-      const encryptedFile = await encryptFile(file, encryptionKey);
-
-      // Create form data for upload
-      const formData = new FormData();
-      formData.append('file', encryptedFile);
-      formData.append('expiration_time', expirationTime);
-      formData.append('download_limit', downloadLimit);
-
-      // Simulated upload for demo - in production this would be an actual API call
-      // const response = await fetch('/api/upload', {
-      //   method: 'POST',
-      //   body: formData,
-      // });
-
-      // Simulate progressive upload
-      for (let i = 0; i <= 100; i += 5) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        setUploadProgress(i);
-      }
-
-      // In production, you'd get the URL from the response
-      // const data = await response.json();
-
-      // Simulated response for demo
-      // Generate a random token for the download URL
-      const token = Math.random().toString(36).substring(2, 15);
-      // Export the encryption key to a hex string
-      const keyString = await exportKeyToHex(encryptionKey);
-
-      onUploadSuccess(token, keyString);
+      // Call callback to notify successful upload
+      onUploadSuccess(url, key);
 
       // Reset form
       setFile(null);
-      setIsUploading(false);
-      setUploadProgress(0);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     } catch (err) {
       console.error('Upload error:', err);
-      setError('An error occurred during the upload. Please try again.');
-      setIsUploading(false);
+      // Error has been handled in the context
     }
   };
 

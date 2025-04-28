@@ -16,10 +16,18 @@ const HomePage: React.FC = () => {
     setShowEncryptionAnimation(true);
     setTimeout(() => {
       setShowEncryptionAnimation(false);
+
+      // Create download URL
+      // Only extract the token part from the full URL if token is a URL
+      let tokenValue = token;
+      if (token.includes('/api/download/')) {
+        // If token is a full URL, only extract the JWT token part
+        tokenValue = token.split('/api/download/')[1];
+      }
+
       // Create download URL with token and key
-      // Use window.location.origin to get the base URL of the site
       const baseUrl = window.location.origin;
-      const url = `${baseUrl}/download/${token}?key=${key}`;
+      const url = `${baseUrl}/download/${tokenValue}?key=${key}`;
       console.log('Generated URL:', url);
       setDownloadUrl(url);
       setUploadSuccess(true);

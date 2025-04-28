@@ -11,14 +11,18 @@ interface DownloadPageProps {
 const DownloadPage: React.FC<DownloadPageProps> = ({ token }) => {
   const [showDecryptionAnimation, setShowDecryptionAnimation] = useState(false);
   const [parsedToken, setParsedToken] = useState<string | undefined>(token);
-  
+
   useEffect(() => {
-    // In a real implementation, this would parse the token from the URL
-    // For demo purposes, we'll use the token passed as a prop or extract from URL
+    // Process token from URL
     if (!token) {
-      const urlToken = window.location.pathname.split('/').pop();
+      // Get token from URL path
+      const pathParts = window.location.pathname.split('/');
+      const urlToken = pathParts[pathParts.length - 1];
+
       if (urlToken && urlToken !== 'download') {
+        // Ensure token is not 'download'
         setParsedToken(urlToken);
+        console.log('Parsed token from URL:', urlToken);
       }
     }
   }, [token]);
@@ -34,7 +38,7 @@ const DownloadPage: React.FC<DownloadPageProps> = ({ token }) => {
   return (
     <div className="flex flex-col min-h-screen bg-slate-900 text-white">
       <Header />
-      
+
       <main className="flex-grow">
         <div className="max-w-6xl mx-auto px-4 py-12">
           <div className="text-center mb-12">
@@ -46,15 +50,15 @@ const DownloadPage: React.FC<DownloadPageProps> = ({ token }) => {
               Remember, files are automatically deleted after the expiration time or download limit.
             </p>
           </div>
-          
+
           <div className="max-w-md mx-auto">
             <DownloadForm token={parsedToken} />
           </div>
         </div>
       </main>
-      
+
       <Footer />
-      
+
       <EncryptionAnimation isActive={showDecryptionAnimation} type="decrypt" />
     </div>
   );
