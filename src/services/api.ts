@@ -45,46 +45,148 @@ export interface FileInfo {
   filename?: string; // Thêm trường filename vì nó được sử dụng trong FileContext.tsx
 }
 
+// Thêm interfaces mới theo API docs
+interface InitMultipartResponse {
+  upload_id: string;
+  key: string;
+  urls: {
+    part_number: number;
+    url: string;
+  }[];
+}
+
+interface CompleteMultipartRequest {
+  key: string;
+  upload_id: string;
+  parts: {
+    part_number: number;
+    etag: string;
+  }[];
+}
+
+// Hàm khởi tạo multipart upload
+async function initMultipartUpload(fileName: string, fileSize: number): Promise<InitMultipartResponse> {
+  const response = await fetch(getApiUrl('/upload/multipart/init'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      filename: fileName,
+      file_size: fileSize
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to initialize multipart upload');
+  }
+
+  return response.json();
+}
+
+// Hàm upload một part
+async function uploadPart(url: string, part: Blob): Promise<string> {
+  const response = await fetch(url, {
+    method: 'PUT',
+    body: part,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to upload part: ${response.status}`);
+  }
+
+  // Get ETag from response headers
+  const etag = response.headers.get('ETag');
+  if (!etag) {
+    throw new Error('No ETag received from upload');
+  }
+  
+  // Remove quotes from ETag if present
+  return etag.replace(/"/g, '');
+}
+
+// Hàm complete multipart upload
+async function completeMultipartUpload(params: CompleteMultipartRequest): Promise<UploadFileResponse> {
+  const response = await fetch(getApiUrl('/upload/multipart/complete'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(params),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to complete multipart upload');
+  }
+
+  return response.json();
+}
+
 /**
  * Upload file to server
  * @param params Upload parameters
  * @returns Promise with API response
  */
 export async function uploadFile(params: UploadFileRequest): Promise<UploadFileResponse> {
-  const formData = new FormData();
+  // Nếu file nhỏ hơn 10MB hoặc không yêu cầu multipart, dùng upload thường
+  if (!params.use_multipart || params.encryptedFile.size < 10 * 1024 * 1024) {
+    const formData = new FormData();
+    formData.append('file', params.encryptedFile, params.file.name);
+    if (params.expiration_hours) {
+      formData.append('expiration_hours', params.expiration_hours.toString());
+    }
+    if (params.download_limit) {
+      formData.append('download_limit', params.download_limit.toString());
+    }
+    if (params.decryption_key) {
+      formData.append('decryption_key', params.decryption_key);
+    }
 
-  // Add encrypted file to form data
-  formData.append('file', params.encryptedFile, params.file.name);
+    const response = await fetch(getApiUrl('/upload'), {
+      method: 'POST',
+      body: formData,
+    });
 
-  // Add other parameters
-  if (params.expiration_hours) {
-    formData.append('expiration_hours', params.expiration_hours.toString());
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Upload failed');
+    }
+
+    return response.json();
   }
 
-  if (params.download_limit) {
-    formData.append('download_limit', params.download_limit.toString());
-  }
+  // Multipart upload cho file lớn
+  const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
+  
+  // 1. Khởi tạo multipart upload
+  const initResponse = await initMultipartUpload(
+    params.file.name,
+    params.encryptedFile.size
+  );
 
-  if (params.decryption_key) {
-    formData.append('decryption_key', params.decryption_key);
-  }
-
-  if (params.use_multipart) {
-    formData.append('use_multipart', params.use_multipart.toString());
-  }
-
-  // Call upload API
-  const response = await fetch(getApiUrl('/upload'), {
-    method: 'POST',
-    body: formData,
+  // 2. Upload từng phần
+  const uploadPromises = initResponse.urls.map(async ({ part_number, url }) => {
+    const start = (part_number - 1) * CHUNK_SIZE;
+    const end = Math.min(start + CHUNK_SIZE, params.encryptedFile.size);
+    const chunk = params.encryptedFile.slice(start, end);
+    const etag = await uploadPart(url, chunk);
+    
+    return {
+      part_number,
+      etag,
+    };
   });
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Upload failed');
-  }
+  const parts = await Promise.all(uploadPromises);
 
-  return await response.json();
+  // 3. Complete multipart upload
+  return await completeMultipartUpload({
+    key: initResponse.key,
+    upload_id: initResponse.upload_id,
+    parts,
+  });
 }
 
 /**

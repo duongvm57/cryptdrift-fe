@@ -179,7 +179,11 @@ const UploadForm: React.FC<UploadFormProps> = ({ onUploadSuccess }) => {
       {isUploading && (
         <div className="mb-4">
           <div className="flex justify-between items-center mb-1">
-            <span className="text-sm text-slate-300">Encrypting & Uploading...</span>
+            <span className="text-sm text-slate-300">
+              {file && file.size > 10 * 1024 * 1024 
+                ? `Uploading part ${uploadingPart} of ${totalParts}...`
+                : 'Encrypting & Uploading...'}
+            </span>
             <span className="text-sm text-teal-400">{uploadProgress}%</span>
           </div>
           <div className="w-full bg-slate-700 rounded-full h-2">

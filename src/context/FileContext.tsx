@@ -31,6 +31,12 @@ interface FileContextType {
   resetError: () => void;
 }
 
+interface UploadProgress {
+  totalParts: number;
+  completedParts: number;
+  currentPartProgress: number;
+}
+
 // Create context with default value null
 export const FileContext = createContext<FileContextType | null>(null);
 
@@ -61,45 +67,27 @@ export function FileProvider({ children }: FileProviderProps) {
 
       // Create encryption key
       const encryptionKey = await generateEncryptionKey();
-
-      // Encrypt file
       const encryptedFile = await encryptFile(file, encryptionKey);
-
-      // Export key as hex string
       const keyString = await exportKeyToHex(encryptionKey);
 
-      // Simulate upload progress
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + 10;
-        });
-      }, 300);
-
-      // Call upload API
+      // Upload với progress tracking
       const response = await uploadFile({
         file,
         encryptedFile,
         expiration_hours: expirationHours,
         download_limit: downloadLimit,
         decryption_key: keyString,
-        use_multipart: file.size > 10 * 1024 * 1024 // Use multipart if file > 10MB
+        use_multipart: encryptedFile.size > 10 * 1024 * 1024
       });
 
-      // Complete the progress
-      clearInterval(progressInterval);
       setUploadProgress(100);
 
-      // Return URL and key
       return {
         url: response.url,
         key: keyString
       };
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred while uploading the file');
+      setError(err instanceof Error ? err.message : 'An error occurred while uploading');
       throw err;
     } finally {
       setIsUploading(false);
